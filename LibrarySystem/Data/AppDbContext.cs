@@ -12,6 +12,9 @@ namespace LibrarySystem.Data
         public DbSet<Category> Categories => Set<Category>();
         public DbSet<Copy> Copies => Set<Copy>();
         public DbSet<Loan> Loans => Set<Loan>();
+        public DbSet<Reservation> Reservations => Set<Reservation>();
+        public DbSet<Fine> Fines => Set<Fine>();
+        public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -74,6 +77,45 @@ namespace LibrarySystem.Data
                 entity.HasOne<Copy>()
                       .WithMany()
                       .HasForeignKey(l => l.CopyId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Reservation>(entity =>
+            {
+                entity.HasIndex(r => new { r.BookId, r.Status, r.Position });
+                entity.Property(r => r.Status).HasConversion<string>().HasMaxLength(20);
+
+                entity.HasOne<User>()
+                      .WithMany()
+                      .HasForeignKey(r => r.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne<Book>()
+                      .WithMany()
+                      .HasForeignKey(r => r.BookId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<Fine>(entity =>
+            {
+                entity.Property(f => f.Amount).HasPrecision(10, 2);
+                entity.Property(f => f.Status).HasConversion<string>().HasMaxLength(20);
+
+                entity.HasOne<Loan>()
+                      .WithMany()
+                      .HasForeignKey(f => f.LoanId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<AuditLog>(entity =>
+            {
+                entity.HasIndex(a => a.Date);
+                entity.Property(a => a.Action).HasMaxLength(100);
+                entity.Property(a => a.Entity).HasMaxLength(100);
+
+                entity.HasOne<User>()
+                      .WithMany()
+                      .HasForeignKey(a => a.ActorId)
                       .OnDelete(DeleteBehavior.Restrict);
             });
         }

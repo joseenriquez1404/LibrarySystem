@@ -37,6 +37,45 @@ namespace LibrarySystem.Migrations
                     b.ToTable("AuthorBook");
                 });
 
+            modelBuilder.Entity("LibrarySystem.Models.AuditLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("ActorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("After")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Before")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Entity")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorId");
+
+                    b.HasIndex("Date");
+
+                    b.ToTable("AuditLogs");
+                });
+
             modelBuilder.Entity("LibrarySystem.Models.Author", b =>
                 {
                     b.Property<int>("Id")
@@ -149,6 +188,33 @@ namespace LibrarySystem.Migrations
                     b.ToTable("Copies");
                 });
 
+            modelBuilder.Entity("LibrarySystem.Models.Fine", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<int>("LoanId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LoanId");
+
+                    b.ToTable("Fines");
+                });
+
             modelBuilder.Entity("LibrarySystem.Models.Loan", b =>
                 {
                     b.Property<int>("Id")
@@ -187,6 +253,43 @@ namespace LibrarySystem.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Loans");
+                });
+
+            modelBuilder.Entity("LibrarySystem.Models.Reservation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BookId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ExpirationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("BookId", "Status", "Position");
+
+                    b.ToTable("Reservations");
                 });
 
             modelBuilder.Entity("LibrarySystem.Models.User", b =>
@@ -243,6 +346,15 @@ namespace LibrarySystem.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LibrarySystem.Models.AuditLog", b =>
+                {
+                    b.HasOne("LibrarySystem.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LibrarySystem.Models.Book", b =>
                 {
                     b.HasOne("LibrarySystem.Models.Category", "Category")
@@ -263,11 +375,35 @@ namespace LibrarySystem.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("LibrarySystem.Models.Fine", b =>
+                {
+                    b.HasOne("LibrarySystem.Models.Loan", null)
+                        .WithMany()
+                        .HasForeignKey("LoanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("LibrarySystem.Models.Loan", b =>
                 {
                     b.HasOne("LibrarySystem.Models.Copy", null)
                         .WithMany()
                         .HasForeignKey("CopyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("LibrarySystem.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("LibrarySystem.Models.Reservation", b =>
+                {
+                    b.HasOne("LibrarySystem.Models.Book", null)
+                        .WithMany()
+                        .HasForeignKey("BookId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
