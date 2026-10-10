@@ -16,8 +16,10 @@ API REST de biblioteca y préstamos en ASP.NET Core (.NET 10). Es un proyecto de
 ## Stack
 
 - .NET 10, ASP.NET Core con controladores, `Nullable` y `ImplicitUsings` activados.
-- OpenAPI con `Microsoft.AspNetCore.OpenApi`, expuesto en Development.
-- Pendiente de elegir o agregar: base de datos y su proveedor, migraciones, JWT, hashing (bcrypt o argon2), framework de tests, Docker.
+- OpenAPI con `Microsoft.AspNetCore.OpenApi` y Scalar como interfaz, expuestos en Development.
+- SQL Server con Entity Framework Core 10 (`Microsoft.EntityFrameworkCore.SqlServer`, `.Design` y `.Tools`). `dotnet-ef` es herramienta local del repo (`dotnet-tools.json`).
+- Hashing temporal con `PasswordHasher` de ASP.NET Core (solo en el seed).
+- Pendiente de elegir o agregar: JWT, hashing definitivo (bcrypt o argon2), framework de tests, Docker.
 
 ## Arquitectura
 
@@ -63,25 +65,33 @@ Cada regla necesita al menos un test que falle si se rompe.
 
 ## Estado actual del código
 
-Modelos de dominio implementados (compilan sin warnings):
+Modelos de dominio y acceso a datos implementados (compilan sin warnings):
 
-- `Models/Enums/`: `Roles` (`User`, `Librarian`, `Admin`), `LoanStatus` (`Active`, `Expired`, `Returned`), `CopyStatus` (`Available`, `Loaned`, `Lost`, `Damaged`).
+- `Models/Enums/`: `Roles` (`User`, `Librarian`, `Admin`), `LoanStatus` (`Active`, `Expired`, `Returned`), `CopyStatus` (`Available`, `Loaned`, `Lost`, `Damaged`), `ReservationStatus` (`Active`, `Fulfilled`, `Cancelled`, `Expired`), `FineStatus` (`Pending`, `Paid`, `Forgiven`).
 - `Models/User.cs`: `Name`, `Email`, `PasswordHash`, `Active`, `Role`.
 - `Models/Book.cs`: `Title`, `Description`, `ISBN`, `Year`, `CategoryId`/`Category`, `Authors` (`List<Author>`), `Active`.
 - `Models/Author.cs` y `Models/Category.cs`: entidades con `Id` y `Name`.
 - `Models/Copy.cs` (ejemplar): `BookId`, `Code`, `Status`, `Active`.
 - `Models/Loan.cs`: `UserId`, `CopyId`, `LoanDate`, `DueDate`, `ReturnDate` (nullable), `Renewals`, `Status`.
+- `Models/Reservation.cs`: `UserId`, `BookId`, `Date`, `Position`, `ExpirationDate` (nullable, para la regla 7), `Status`.
+- `Models/Fine.cs`: `LoanId`, `Amount` (decimal), `Status`.
+- `Models/AuditLog.cs`: `ActorId`, `Action`, `Entity`, `Before`, `After`, `Date`. Solo se inserta.
+- `Data/AppDbContext.cs`: un `DbSet` por entidad, relaciones con `Restrict`, enums como texto, índices únicos en `User.Email`, `Book.ISBN` y `Copy.Code`.
+- `Data/DbSeeder.cs`: usuarios por rol, categorías, autores, libros y ejemplares. Corre en Development y solo inserta si `Users` está vacía. Contraseñas de prueba: ver el archivo.
+- `Controllers/HealthController.cs`: `GET /health`, 200 si hay conexión a la base y 503 si no.
+- `Migrations/`: `InitialCreate` y `AddReservationFineAuditLog`, ya aplicadas en la base `Library`.
+- `Program.cs` aplica migraciones y corre el seed al arrancar, solo en Development.
 
 Pendiente:
 
-- Entidades **Reserva**, **Multa** y **Auditoría** (se dejaron para después a propósito).
 - Decidir si `Copy` se renombra a `Ejemplar` y `Book`/`Author`/`Category` a español. Hoy hay nombres mezclados.
 - Relación `Book`–`Category`: se asume una categoría por libro.
-- `Controllers/` existe vacío; no hay capa de aplicación, repositorios ni base de datos todavía.
-- No hay `.env.example`, ni proyecto de tests.
+- Separar las cuatro capas (hoy todo vive en `Models/`, `Data/` y `Controllers/`), repositorios, casos de uso y DI.
+- Autenticación con JWT y RBAC (Fase 2).
+- No hay proyecto de tests.
 - `LibrarySystem.http` apunta a `/weatherforecast/`, que no existe; es plantilla sin reemplazar.
 
-Git: el repositorio existe en la rama `master` con remoto `origin`.
+Git: ramas `master` (principal) y `modelos-dominio`, con remoto `origin`. `.gitignore` y `.env.example` están en la raíz del repo.
 
 ## Convenciones
 
@@ -98,6 +108,11 @@ Git: el repositorio existe en la rama `master` con remoto `origin`.
 ```
 dotnet build
 dotnet run
+dotnet tool restore
+dotnet dotnet-ef migrations add <Nombre> --project LibrarySystem/LibrarySystem.csproj
+dotnet dotnet-ef database update --project LibrarySystem/LibrarySystem.csproj
 ```
+
+Los comandos `dotnet-ef` se corren desde la raíz del repo, donde está `dotnet-tools.json`. La cadena de conexión de desarrollo está en `appsettings.Development.json`; en otros entornos viene de `ConnectionStrings__DefaultConnection` (ver `.env.example`).
 
 Tests, Docker y CI todavía no existen; agrégalos en las fases 5 y 6 y actualiza esta sección cuando existan.
