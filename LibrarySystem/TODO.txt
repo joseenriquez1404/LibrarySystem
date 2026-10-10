@@ -46,18 +46,19 @@ Decide las entidades y las reglas con números antes de programar; los valores d
 
 ## Avance
 
-Modelos de dominio listos (rama `modelos-dominio`), todavía sin capas, base de datos ni endpoints:
+Modelos de dominio, base de datos SQL Server con EF Core, migraciones, seed y `/health` listos. Todavía sin capas separadas, autenticación ni endpoints de negocio:
 
-- [x] Enums `Roles`, `LoanStatus` y `CopyStatus`
+- [x] Enums `Roles`, `LoanStatus`, `CopyStatus`, `ReservationStatus` y `FineStatus`
 - [x] `User` con `PasswordHash`, `Active` y `Role`
 - [x] `Book` con `ISBN`, `Year`, `Category`, `Active` y autores como entidad `Author`
 - [x] `Category` y `Author` como entidades
 - [x] `Copy` (ejemplar) con `Code`, `Status` y `Active`
 - [x] `Loan` con `CopyId`, `DueDate`, `ReturnDate` y `Renewals`
-- [ ] Entidades Reserva, Multa y Auditoría
+- [x] Entidades `Reservation`, `Fine` y `AuditLog`
+- [x] `AppDbContext` con relaciones, índices únicos y migraciones `InitialCreate` y `AddReservationFineAuditLog`
 - [ ] Decidir nombres: `Copy` como `Ejemplar`, y entidades en español o inglés
 
-Las casillas de las fases de abajo siguen sin marcar porque describen funcionalidad, no solo modelos.
+Se marcan en las fases solo las casillas que ya funcionan de punta a punta. Las demás siguen pendientes.
 
 ## Fase 1: Arquitectura y base
 
@@ -67,11 +68,11 @@ Al terminar esta fase, el proyecto levanta con un comando y las capas no se mezc
 - [ ] El dominio no importa nada de frameworks ni de la base de datos
 - [ ] Los repositorios son interfaces en dominio o aplicación, e implementaciones en infraestructura
 - [ ] Inyección de dependencias para casos de uso y repositorios
-- [ ] Configuración por variables de entorno, con un `.env.example` y sin secretos en el repositorio
-- [ ] Migraciones versionadas para todo el esquema
-- [ ] Script de datos semilla con un admin, un bibliotecario, lectores y libros de ejemplo
-- [ ] Endpoint `/health` que verifica la conexión a la base de datos
-- [ ] Repositorio en Git con commits pequeños y un `.gitignore` correcto
+- [x] Configuración por variables de entorno, con un `.env.example` y sin secretos en el repositorio
+- [x] Migraciones versionadas para todo el esquema
+- [x] Script de datos semilla con un admin, un bibliotecario, lectores y libros de ejemplo
+- [x] Endpoint `/health` que verifica la conexión a la base de datos
+- [x] Repositorio en Git con commits pequeños y un `.gitignore` correcto
 
 ## Fase 2: Autenticación y RBAC
 
