@@ -44,6 +44,21 @@ Decide las entidades y las reglas con números antes de programar; los valores d
 8. Un ejemplar tiene como máximo un préstamo activo a la vez.
 9. No se borra un libro con ejemplares prestados ni con historial; se da de baja de forma lógica.
 
+## Avance
+
+Modelos de dominio listos (rama `modelos-dominio`), todavía sin capas, base de datos ni endpoints:
+
+- [x] Enums `Roles`, `LoanStatus` y `CopyStatus`
+- [x] `User` con `PasswordHash`, `Active` y `Role`
+- [x] `Book` con `ISBN`, `Year`, `Category`, `Active` y autores como entidad `Author`
+- [x] `Category` y `Author` como entidades
+- [x] `Copy` (ejemplar) con `Code`, `Status` y `Active`
+- [x] `Loan` con `CopyId`, `DueDate`, `ReturnDate` y `Renewals`
+- [ ] Entidades Reserva, Multa y Auditoría
+- [ ] Decidir nombres: `Copy` como `Ejemplar`, y entidades en español o inglés
+
+Las casillas de las fases de abajo siguen sin marcar porque describen funcionalidad, no solo modelos.
+
 ## Fase 1: Arquitectura y base
 
 Al terminar esta fase, el proyecto levanta con un comando y las capas no se mezclan.
