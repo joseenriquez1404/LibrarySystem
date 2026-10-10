@@ -1,0 +1,178 @@
+﻿# Biblioteca y préstamos: checklist de proyecto terminado
+
+10 de octubre de 2026
+
+## Objetivo y alcance
+
+El proyecto está terminado cuando un bibliotecario presta y recibe libros, un lector consulta y reserva, y un admin gestiona todo, con reglas probadas y despliegue reproducible.
+
+| Dentro del MVP | Fuera del MVP por ahora |
+| --- | --- |
+| API REST con 3 roles y JWT | Frontend (basta con Swagger o Postman) |
+| Catálogo, préstamos, devoluciones, renovaciones, multas y reservas | Pago real de multas |
+| Tests, Docker y documentación | Notificaciones push y códigos de barras físicos |
+
+| Rol | Qué puede hacer |
+| --- | --- |
+| Lector | Consultar el catálogo, reservar, y ver y renovar solo sus préstamos y multas |
+| Bibliotecario | Todo lo del lector sobre cualquier usuario, además de gestionar el catálogo, registrar préstamos y devoluciones y cobrar multas |
+| Admin | Todo lo anterior, además de gestionar usuarios y roles, perdonar multas y ver la auditoría |
+
+## Modelo de dominio y reglas de negocio
+
+Decide las entidades y las reglas con números antes de programar; los valores de abajo son una propuesta que puedes ajustar, con montos en pesos mexicanos.
+
+| Entidad | Atributos clave | Estados o notas |
+| --- | --- | --- |
+| Usuario | id, email, password_hash, rol, activo | Roles: lector, bibliotecario, admin |
+| Libro | id, isbn, título, año, categoría | Relación muchos a muchos con autores |
+| Ejemplar | id, libro_id, código | Disponible, prestado, perdido, dañado |
+| Préstamo | id, usuario_id, ejemplar_id, fecha_préstamo, fecha_vencimiento, fecha_devolución, renovaciones | Activo, devuelto, vencido |
+| Reserva | id, usuario_id, libro_id, fecha, posición | Activa, atendida, cancelada, expirada |
+| Multa | id, préstamo_id, monto | Pendiente, pagada, perdonada |
+| Auditoría | id, actor_id, acción, entidad, antes, después, fecha | Solo se inserta, nunca se edita |
+
+**Reglas de negocio (cada una necesita al menos un test):**
+
+1. Un lector puede tener máximo 3 préstamos activos.
+2. El plazo de préstamo es de 14 días, con hasta 2 renovaciones de 7 días cada una.
+3. No se renueva si el préstamo está vencido o si otro lector tiene reserva activa del libro.
+4. La multa es de 5 pesos por día de retraso, con tope de 100 pesos por préstamo.
+5. Un lector con multas pendientes o préstamos vencidos no puede pedir nuevos préstamos.
+6. Solo se reserva un libro cuando no tiene ejemplares disponibles, y la cola es en orden de llegada.
+7. Una reserva expira 3 días después de que el ejemplar queda disponible para ese lector.
+8. Un ejemplar tiene como máximo un préstamo activo a la vez.
+9. No se borra un libro con ejemplares prestados ni con historial; se da de baja de forma lógica.
+
+## Fase 1: Arquitectura y base
+
+Al terminar esta fase, el proyecto levanta con un comando y las capas no se mezclan.
+
+- [ ] Cuatro capas separadas: dominio (entidades y reglas), aplicación (casos de uso), infraestructura (base de datos, JWT, hashing) y presentación (rutas y DTOs)
+- [ ] El dominio no importa nada de frameworks ni de la base de datos
+- [ ] Los repositorios son interfaces en dominio o aplicación, e implementaciones en infraestructura
+- [ ] Inyección de dependencias para casos de uso y repositorios
+- [ ] Configuración por variables de entorno, con un `.env.example` y sin secretos en el repositorio
+- [ ] Migraciones versionadas para todo el esquema
+- [ ] Script de datos semilla con un admin, un bibliotecario, lectores y libros de ejemplo
+- [ ] Endpoint `/health` que verifica la conexión a la base de datos
+- [ ] Repositorio en Git con commits pequeños y un `.gitignore` correcto
+
+## Fase 2: Autenticación y RBAC
+
+Al terminar esta fase, cada endpoint sabe quién eres, qué rol tienes y si el recurso es tuyo.
+
+- [ ] Registro con validación de email y contraseña mínima, guardando solo el hash (bcrypt o argon2)
+- [ ] Login que devuelve un access token de 15 minutos y un refresh token de 7 días
+- [ ] Refresh token rotativo, y logout que lo invalida
+- [ ] Roles lector, bibliotecario y admin guardados en la base de datos
+- [ ] Guard de autorización por rol en cada endpoint protegido
+- [ ] Permiso por recurso: un lector solo ve y renueva sus propios préstamos, probado con dos lectores distintos
+- [ ] Solo el admin cambia roles, y nadie puede cambiar su propio rol
+- [ ] 401 cuando falta el token o expiró, y 403 cuando el rol no alcanza, sin mezclarlos
+- [ ] Límite de intentos de login (rate limit básico)
+- [ ] Un usuario desactivado no puede iniciar sesión ni usar tokens que aún estén vigentes
+
+## Fase 3: Catálogo
+
+Al terminar esta fase, cualquier usuario autenticado encuentra un libro en menos de tres filtros y el personal lo administra sin tocar la base de datos.
+
+- [ ] CRUD de libros, con escritura solo para bibliotecario y admin, y lectura para cualquier usuario autenticado
+- [ ] CRUD de autores y categorías, con relación muchos a muchos entre libros y autores
+- [ ] Ejemplares por libro, con alta, baja y cambio de estado (disponible, prestado, perdido, dañado)
+- [ ] ISBN único y validado
+- [ ] Búsqueda por título, autor, categoría o ISBN
+- [ ] Filtro por disponibilidad, para ver solo libros con ejemplares libres
+- [ ] Paginación y ordenamiento en todos los listados, con un tamaño máximo de página
+- [ ] Baja lógica en lugar de borrado físico cuando hay historial
+
+## Fase 4: Préstamos
+
+Esta fase es el corazón del proyecto: cada caso de uso vive en la capa de aplicación y valida las reglas de la sección 2.
+
+| Caso de uso | Quién lo ejecuta | Qué debe validar |
+| --- | --- | --- |
+| Prestar ejemplar | Bibliotecario | Ejemplar disponible, lector activo sin multas ni vencidos, tope de 3 préstamos, y respetar la cola de reservas |
+| Devolver ejemplar | Bibliotecario | Calcular retraso y multa, liberar el ejemplar y avisar a la siguiente reserva |
+| Renovar préstamo | Lector (los suyos) o bibliotecario | Máximo 2 renovaciones, sin vencido y sin reserva de otro lector |
+| Reservar libro | Lector | Sin ejemplares libres, sin reserva duplicada, cola en orden de llegada |
+| Cancelar reserva | Lector dueño o bibliotecario | La reserva debe estar activa |
+| Pagar multa | Bibliotecario | La multa debe estar pendiente |
+| Perdonar multa | Admin | La multa debe estar pendiente, con registro en auditoría |
+| Reportar ejemplar perdido | Bibliotecario | Cambiar el estado del ejemplar y cerrar el préstamo activo |
+| Consultar historial | Lector (el suyo) o bibliotecario | Paginado, con filtros por estado y fechas |
+
+- [ ] Dos peticiones simultáneas no pueden prestar el mismo ejemplar (transacción con bloqueo o restricción única)
+- [ ] Cada cambio de estado ocurre dentro de una transacción
+- [ ] Un comando o tarea programada marca préstamos vencidos y expira reservas
+- [ ] Los montos y plazos salen de configuración, no de números fijos en el código
+
+## Fase 5: Calidad
+
+Al terminar esta fase, romper una regla de negocio hace fallar un test y cada error responde con el mismo formato.
+
+- [ ] Validación de entrada con esquemas (DTOs) y mensajes claros por campo
+- [ ] Excepciones de dominio propias, como `LimitePrestamosExcedido`, traducidas a códigos HTTP en un solo lugar
+- [ ] Formato de error uniforme con código, mensaje y detalle
+- [ ] Tests unitarios de cada regla de la sección 2, sin base de datos
+- [ ] Tests de integración de los endpoints protegidos con cuatro casos: sin token, rol incorrecto, rol correcto y recurso ajeno
+- [ ] Test de concurrencia que intenta prestar el mismo ejemplar dos veces a la vez
+- [ ] Cobertura mínima de 80% en dominio y casos de uso
+- [ ] Bitácora de auditoría para préstamos, devoluciones, multas y cambios de rol
+- [ ] Logs estructurados que nunca incluyen contraseñas ni tokens
+- [ ] Linter y formateador sin errores
+
+## Fase 6: Entrega
+
+Al terminar esta fase, otra persona puede clonar el repositorio, correrlo y entender tus decisiones sin preguntarte nada.
+
+- [ ] `Dockerfile` y `docker-compose.yml` con la API y la base de datos; `docker compose up` levanta todo
+- [ ] Documentación OpenAPI (Swagger) con ejemplos y esquema de seguridad JWT
+- [ ] README con qué es, arquitectura, cómo correrlo, cómo probarlo, usuarios semilla y decisiones de diseño
+- [ ] Diagrama de capas y diagrama entidad relación dentro del README
+- [ ] Integración continua (por ejemplo GitHub Actions) que corre linter y tests en cada push
+- [ ] Colección de Postman o archivo `.http` con los flujos principales
+- [ ] Despliegue en un servicio gratuito, con URL pública
+- [ ] Versión `v1.0.0` etiquetada en Git
+
+## Extras opcionales
+
+Elige uno o dos solo después de cumplir la definición de terminado de la última sección; cada uno te enseña algo distinto.
+
+| Extra | Qué practicas |
+| --- | --- |
+| Caché con Redis para el catálogo | Invalidación de caché y capas de infraestructura intercambiables |
+| Correos de aviso de vencimiento | Tareas en segundo plano e integración con servicios externos |
+| Importación del catálogo desde CSV | Validación por lotes y manejo de errores parciales |
+| Autocompletar libros por ISBN con la API de Open Library | Consumo de APIs externas detrás de un puerto |
+| Reportes: libros más prestados y lectores morosos | Consultas agregadas y optimización con índices |
+| Búsqueda de texto completo | Índices especializados en la base de datos |
+| Multi-sucursal | Evolución del modelo de datos sin romper lo existente |
+| Frontend sencillo en React | Consumo real de tu API y manejo de tokens en el cliente |
+
+## Definición de terminado y orden de trabajo
+
+Considera el proyecto terminado cuando se cumplan los ocho criterios siguientes, y no agregues extras antes.
+
+- [ ] Un lector nuevo se registra, entra, busca un libro, lo reserva y ve su reserva
+- [ ] Un bibliotecario presta, renueva y recibe un libro con retraso, y se genera la multa correcta
+- [ ] Un lector no puede ver ni modificar datos de otro lector
+- [ ] Cada regla de la sección 2 tiene al menos un test que falla si se rompe
+- [ ] `docker compose up` levanta todo desde cero con datos semilla
+- [ ] La integración continua está en verde
+- [ ] El README permite a otra persona correr el proyecto en 10 minutos
+- [ ] Hay una versión desplegada y accesible por URL
+
+**Orden recomendado.** Empieza por dominio y casos de uso con repositorios en memoria y tests, antes de elegir framework o base de datos; así la clean architecture se comprueba sola.
+
+| Paso | Qué haces | Horas aprox. |
+| --- | --- | --- |
+| 1 | Entidades, reglas y casos de uso con tests unitarios y repositorios en memoria | 15 a 20 |
+| 2 | Fase 1: capas, configuración, migraciones y base de datos real | 8 a 10 |
+| 3 | Fase 2: autenticación, JWT con refresh y RBAC | 10 a 12 |
+| 4 | Fase 3: catálogo, búsqueda y paginación | 8 a 10 |
+| 5 | Fase 4: conectar préstamos, reservas y multas a la API | 12 a 15 |
+| 6 | Fase 5: tests de integración, concurrencia y auditoría | 8 a 10 |
+| 7 | Fase 6: Docker, CI, documentación y despliegue | 6 a 8 |
+
+El total ronda entre 67 y 85 horas; son estimaciones, así que si un paso se dispara el doble, revisa si estás agregando alcance que no está en la lista.
