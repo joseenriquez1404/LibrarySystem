@@ -63,20 +63,29 @@ Cada regla necesita al menos un test que falle si se rompe.
 
 ## Estado actual del código
 
-El código es un esqueleto inicial y todavía no cumple `TODO.txt`:
+Modelos de dominio implementados (compilan sin warnings):
 
-- `Models/Enums/Roles.cs` usa `User`, `Librarian`, `Admin`. Está bien mapeado al rol "lector", pero los nombres en español del TODO son solo de documentación; no los cambies sin preguntar.
-- `Models/User.cs` guarda `Password` en texto plano. Debe guardar solo `PasswordHash`, y el campo `Name` no está en el TODO (`email`, `password_hash`, `rol`, `activo`).
-- `Models/Loan.cs` no tiene `ReturnDate` ni la relación con ejemplar (`ejemplar_id`); hoy referencia `BookId`. Falta la entidad **Ejemplar** y la fecha de devolución.
-- `Models/Book.cs` no tiene ISBN, año, categoría, ni relación muchos a muchos con autores (`Authors` es `List<string>`).
-- Faltan entidades **Reserva**, **Multa** y **Auditoría**.
-- `Controllers/` existe vacío.
-- No hay repositorio Git, ni `.gitignore`, ni `.env.example`, ni proyecto de tests.
+- `Models/Enums/`: `Roles` (`User`, `Librarian`, `Admin`), `LoanStatus` (`Active`, `Expired`, `Returned`), `CopyStatus` (`Available`, `Loaned`, `Lost`, `Damaged`).
+- `Models/User.cs`: `Name`, `Email`, `PasswordHash`, `Active`, `Role`.
+- `Models/Book.cs`: `Title`, `Description`, `ISBN`, `Year`, `CategoryId`/`Category`, `Authors` (`List<Author>`), `Active`.
+- `Models/Author.cs` y `Models/Category.cs`: entidades con `Id` y `Name`.
+- `Models/Copy.cs` (ejemplar): `BookId`, `Code`, `Status`, `Active`.
+- `Models/Loan.cs`: `UserId`, `CopyId`, `LoanDate`, `DueDate`, `ReturnDate` (nullable), `Renewals`, `Status`.
+
+Pendiente:
+
+- Entidades **Reserva**, **Multa** y **Auditoría** (se dejaron para después a propósito).
+- Decidir si `Copy` se renombra a `Ejemplar` y `Book`/`Author`/`Category` a español. Hoy hay nombres mezclados.
+- Relación `Book`–`Category`: se asume una categoría por libro.
+- `Controllers/` existe vacío; no hay capa de aplicación, repositorios ni base de datos todavía.
+- No hay `.env.example`, ni proyecto de tests.
 - `LibrarySystem.http` apunta a `/weatherforecast/`, que no existe; es plantilla sin reemplazar.
+
+Git: el repositorio existe en la rama `master` con remoto `origin`.
 
 ## Convenciones
 
-- Idioma: nombres de dominio y mensajes de usuario en español, igual que `TODO.txt`. Nombres de código como clases y métodos también en español para mantener consistencia con el dominio.
+- Idioma: mensajes de usuario y términos de dominio en español, igual que `TODO.txt`. Los nombres de código de los modelos actuales están en inglés; mantén la convención que quede decidida en "Pendiente".
 - Nunca loguear contraseñas ni tokens.
 - Configuración sensible por variables de entorno. No commitear secretos ni `appsettings` con credenciales reales.
 - Todo listado tiene paginación y ordenamiento con tamaño máximo de página.
