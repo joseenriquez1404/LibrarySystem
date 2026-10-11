@@ -18,8 +18,9 @@ API REST de biblioteca y préstamos en ASP.NET Core (.NET 10). Es un proyecto de
 - .NET 10, ASP.NET Core con controladores, `Nullable` y `ImplicitUsings` activados.
 - OpenAPI con `Microsoft.AspNetCore.OpenApi` y Scalar como interfaz, expuestos en Development.
 - SQL Server con Entity Framework Core 10 (`Microsoft.EntityFrameworkCore.SqlServer`, `.Design` y `.Tools`). `dotnet-ef` es herramienta local del repo (`dotnet-tools.json`).
-- Hashing temporal con `PasswordHasher` de ASP.NET Core (solo en el seed).
-- Pendiente de elegir o agregar: JWT, hashing definitivo (bcrypt o argon2), framework de tests, Docker.
+- JWT con `Microsoft.AspNetCore.Authentication.JwtBearer`. Solo access token (60 minutos por defecto); el refresh token se aplazó.
+- Hashing temporal con `PasswordHasher` de ASP.NET Core (en `AuthService` y en el seed).
+- Pendiente de elegir o agregar: hashing definitivo (bcrypt o argon2), framework de tests, Docker.
 
 ## Arquitectura
 
@@ -80,14 +81,22 @@ Modelos de dominio y acceso a datos implementados (compilan sin warnings):
 - `Data/DbSeeder.cs`: usuarios por rol, categorías, autores, libros y ejemplares. Corre en Development y solo inserta si `Users` está vacía. Contraseñas de prueba: ver el archivo.
 - `Controllers/HealthController.cs`: `GET /health`, 200 si hay conexión a la base y 503 si no.
 - `Migrations/`: `InitialCreate` y `AddReservationFineAuditLog`, ya aplicadas en la base `Library`.
-- `Program.cs` aplica migraciones y corre el seed al arrancar, solo en Development.
+- `Service/`: `IAuthService`/`AuthService` (registro de lectores y login), `ITokenService`/`TokenService` (crea el JWT con `JsonWebTokenHandler`), `IUserService`/`UserService` (consultar, cambiar rol y activar o desactivar; solo admin, nadie cambia su propio rol, el cambio de rol va a `AuditLogs`) y `JwtSettings`.
+- `Dtos/`: `RegisterRequest` y `LoginRequest` con validaciones por atributos, `AuthResponse`, `UserDto` (nunca expone el hash) y `PagedResult` (sin uso todavía).
+- `Exceptions/`: excepciones de los servicios (`InvalidInputException`, `ConflictException`, `InvalidCredentialsException`, `NotFoundException`, `ForbiddenException`) y `ApiExceptionHandler`, el único lugar que las traduce a 400, 401, 403, 404 y 409 con un campo `code`. Los mensajes están en inglés.
+- `Controllers/AuthController.cs`: `POST /api/auth/register` (201) y `POST /api/auth/login` (200).
+- `Program.cs` configura JwtBearer, valida `JwtSettings` al arrancar, aplica migraciones y corre el seed solo en Development.
+- JWT: `Issuer`, `Audience` y `AccessTokenMinutes` están en `appsettings.json`; solo `Key` cambia por entorno (`appsettings.Development.json` o `Jwt__Key`). La app no arranca si falta la clave o mide menos de 32 caracteres.
 
 Pendiente:
 
 - Decidir si `Copy` se renombra a `Ejemplar` y `Book`/`Author`/`Category` a español. Hoy hay nombres mezclados.
 - Relación `Book`–`Category`: se asume una categoría por libro.
-- Separar las cuatro capas (hoy todo vive en `Models/`, `Data/` y `Controllers/`), repositorios, casos de uso y DI.
-- Autenticación con JWT y RBAC (Fase 2).
+- Separar las cuatro capas (hoy todo vive en `Models/`, `Data/`, `Service/` y `Controllers/`), repositorios y casos de uso. Los servicios usan `AppDbContext` directamente.
+- Fase 2 incompleta: falta un `UserController`, proteger endpoints con `[Authorize]` y permisos por recurso, límite de intentos de login, que un usuario desactivado no pueda usar tokens vigentes, y cambiar el hashing a bcrypt o argon2. El refresh token se aplazó.
+- Paginación aplazada: `UserService.GetAllAsync` devuelve todos los usuarios. `TODO.txt` sigue pidiéndola en todos los listados.
+- Hay una migración vacía `PendingEntities` aplicada en la base local pero sin commitear; conviene quitarla con `Remove-Migration`.
+- Al leer el id del usuario en un controlador, usar el claim `sub` (con `JsonWebTokenHandler` los claims no se renombran); el rol sí funciona con `[Authorize(Roles = "...")]`.
 - No hay proyecto de tests.
 - `LibrarySystem.http` apunta a `/weatherforecast/`, que no existe; es plantilla sin reemplazar.
 

@@ -46,7 +46,7 @@ Decide las entidades y las reglas con números antes de programar; los valores d
 
 ## Avance
 
-Modelos de dominio, base de datos SQL Server con EF Core, migraciones, seed y `/health` listos. Todavía sin capas separadas, autenticación ni endpoints de negocio:
+Modelos de dominio, base de datos SQL Server con EF Core, migraciones, seed, `/health` y registro y login con JWT listos. Todavía sin capas separadas ni endpoints de negocio:
 
 - [x] Enums `Roles`, `LoanStatus`, `CopyStatus`, `ReservationStatus` y `FineStatus`
 - [x] `User` con `PasswordHash`, `Active` y `Role`
@@ -56,7 +56,14 @@ Modelos de dominio, base de datos SQL Server con EF Core, migraciones, seed y `/
 - [x] `Loan` con `CopyId`, `DueDate`, `ReturnDate` y `Renewals`
 - [x] Entidades `Reservation`, `Fine` y `AuditLog`
 - [x] `AppDbContext` con relaciones, índices únicos y migraciones `InitialCreate` y `AddReservationFineAuditLog`
+- [x] `AuthService` (registro de lectores y login), `TokenService` (JWT) y `AuthController` (`POST /api/auth/register` y `/login`)
+- [x] `UserService` (consultar, cambiar rol, activar y desactivar), todavía sin controlador ni pruebas
+- [x] DTOs con validaciones por atributos y `ApiExceptionHandler` (400, 401, 403, 404 y 409)
+- [x] JwtBearer configurado; `Issuer`, `Audience` y duración en `appsettings.json`, solo la clave por entorno
 - [ ] Decidir nombres: `Copy` como `Ejemplar`, y entidades en español o inglés
+- [ ] Cambiar `PasswordHasher` por bcrypt o argon2
+- [ ] Refresh token (aplazado: por ahora solo access token de 60 minutos)
+- [ ] Paginación en listados (aplazada: `UserService.GetAllAsync` devuelve todo)
 
 Se marcan en las fases solo las casillas que ya funcionan de punta a punta. Las demás siguen pendientes.
 
@@ -79,9 +86,9 @@ Al terminar esta fase, el proyecto levanta con un comando y las capas no se mezc
 Al terminar esta fase, cada endpoint sabe quién eres, qué rol tienes y si el recurso es tuyo.
 
 - [ ] Registro con validación de email y contraseña mínima, guardando solo el hash (bcrypt o argon2)
-- [ ] Login que devuelve un access token de 15 minutos y un refresh token de 7 días
-- [ ] Refresh token rotativo, y logout que lo invalida
-- [ ] Roles lector, bibliotecario y admin guardados en la base de datos
+- [x] Login que devuelve un access token (60 minutos; el refresh token se aplazó)
+- [ ] Refresh token rotativo, y logout que lo invalida (aplazado)
+- [x] Roles lector, bibliotecario y admin guardados en la base de datos
 - [ ] Guard de autorización por rol en cada endpoint protegido
 - [ ] Permiso por recurso: un lector solo ve y renueva sus propios préstamos, probado con dos lectores distintos
 - [ ] Solo el admin cambia roles, y nadie puede cambiar su propio rol
@@ -185,7 +192,7 @@ Considera el proyecto terminado cuando se cumplan los ocho criterios siguientes,
 | --- | --- | --- |
 | 1 | Entidades, reglas y casos de uso con tests unitarios y repositorios en memoria | 15 a 20 |
 | 2 | Fase 1: capas, configuración, migraciones y base de datos real | 8 a 10 |
-| 3 | Fase 2: autenticación, JWT con refresh y RBAC | 10 a 12 |
+| 3 | Fase 2: autenticación, JWT (refresh aplazado) y RBAC | 10 a 12 |
 | 4 | Fase 3: catálogo, búsqueda y paginación | 8 a 10 |
 | 5 | Fase 4: conectar préstamos, reservas y multas a la API | 12 a 15 |
 | 6 | Fase 5: tests de integración, concurrencia y auditoría | 8 a 10 |
