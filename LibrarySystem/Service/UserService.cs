@@ -8,26 +8,32 @@ using Microsoft.EntityFrameworkCore;
 
 namespace LibrarySystem.Service
 {
-    public class UserService(AppDbContext db) : IUserService
+    public class UserService(AppDbContext _context) : IUserService
     {
-        public async Task<UserDto> GetByIdAsync(int id)
+        public async Task<User> GetByIdAsync(int id)
         {
             var user = await FindUserAsync(id);
 
-            return UserDto.From(user);
+            return user;
         }
 
-        public async Task<List<UserDto>> GetAllAsync()
+        public async Task<List<UserResponse>> GetAllAsync()
         {
-            var users = await db.Users
+            return await _context.Users
                 .AsNoTracking()
                 .OrderBy(u => u.Id)
+                .Select(u => new UserResponse
+                {
+                    Id = u.Id,
+                    Name = u.Name,
+                    Email = u.Email,
+                    Role = u.Role.ToString(),
+                    Active = u.Active
+                })
                 .ToListAsync();
-
-            return users.Select(UserDto.From).ToList();
         }
 
-        public async Task<UserDto> ChangeRoleAsync(int actorId, int userId, Roles newRole)
+        public async Task<User> ChangeRoleAsync(int actorId, int userId, Roles newRole)
         {
             await EnsureAdminAsync(actorId);
 
@@ -46,12 +52,12 @@ namespace LibrarySystem.Service
 
             if (previousRole == newRole)
             {
-                return UserDto.From(user);
+                return user;
             }
 
             user.Role = newRole;
 
-            db.AuditLogs.Add(new AuditLog
+            _context.AuditLogs.Add(new AuditLog
             {
                 ActorId = actorId,
                 Action = "ChangeRole",
@@ -61,12 +67,12 @@ namespace LibrarySystem.Service
                 Date = DateTime.UtcNow
             });
 
-            await db.SaveChangesAsync();
+            await _context.SaveChangesAsync();
 
-            return UserDto.From(user);
+            return user;
         }
 
-        public async Task<UserDto> SetActiveAsync(int actorId, int userId, bool active)
+        public async Task<User> SetActiveAsync(int actorId, int userId, bool active)
         {
             await EnsureAdminAsync(actorId);
 
@@ -80,21 +86,22 @@ namespace LibrarySystem.Service
             if (user.Active != active)
             {
                 user.Active = active;
-                await db.SaveChangesAsync();
+                await _context.SaveChangesAsync();
             }
 
-            return UserDto.From(user);
+            return user;
         }
 
         private async Task<User> FindUserAsync(int id)
         {
-            var user = await db.Users.FirstOrDefaultAsync(u => u.Id == id);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == id);
 
             return user ?? throw new NotFoundException("User not found.");
         }
+
         private async Task EnsureAdminAsync(int actorId)
         {
-            var isAdmin = await db.Users.AnyAsync(u => u.Id == actorId && u.Active && u.Role == Roles.Admin);
+            var isAdmin = await _context.Users.AnyAsync(u => u.Id == actorId && u.Active && u.Role == Roles.Admin);
 
             if (!isAdmin)
             {

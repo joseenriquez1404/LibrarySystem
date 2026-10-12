@@ -1,4 +1,5 @@
 using LibrarySystem.Dtos;
+using LibrarySystem.Models;
 using LibrarySystem.Service;
 using Microsoft.AspNetCore.Mvc;
 
@@ -9,19 +10,33 @@ namespace LibrarySystem.Controllers
     public class AuthController(IAuthService authService) : ControllerBase
     {
         [HttpPost("register")]
-        public async Task<ActionResult<UserDto>> Register(RegisterRequest request)
+        public async Task<ActionResult<UserResponse>> Register(RegisterRequest request)
         {
             var user = await authService.RegisterAsync(request);
 
-            return StatusCode(StatusCodes.Status201Created, user);
+            return StatusCode(StatusCodes.Status201Created, ToResponse(user));
         }
 
         [HttpPost("login")]
         public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
         {
-            var response = await authService.LoginAsync(request);
+            var (user, token, expiresAt) = await authService.LoginAsync(request);
 
-            return Ok(response);
+            return Ok(new AuthResponse
+            {
+                AccessToken = token,
+                ExpiresAt = expiresAt,
+                User = ToResponse(user)
+            });
         }
+
+        private static UserResponse ToResponse(User user) => new()
+        {
+            Id = user.Id,
+            Name = user.Name,
+            Email = user.Email,
+            Role = user.Role.ToString(),
+            Active = user.Active
+        };
     }
 }
