@@ -2,15 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace LibrarySystem.Dtos
 {
-    public record LoginRequest
+    public class LoginRequest
     {
-        [Required]
-        [EmailAddress]
-        [StringLength(RegisterRequest.MaxEmailLength)]
-        public string Email { get; init; } = string.Empty;
-
-        [Required]
-        [StringLength(RegisterRequest.MaxPasswordLength)]
-        public string Password { get; init; } = string.Empty;
+        [Required, MaxLength(RegisterRequest.MaxEmailLength)]
+        public string Email { get; set; } = string.Empty;
+        [Required, MaxLength(RegisterRequest.MaxPasswordLength)]
+        public string Password { get; set; } = string.Empty;
     }
 }

@@ -1,10 +1,11 @@
 using LibrarySystem.Dtos;
+using LibrarySystem.Models;
 
 namespace LibrarySystem.Service
 {
     public interface IAuthService
     {
-        Task<UserDto> RegisterAsync(RegisterRequest request);
-        Task<AuthResponse> LoginAsync(LoginRequest request);
+        Task<User> RegisterAsync(RegisterRequest request);
+        Task<(User User, string Token, DateTime ExpiresAt)> LoginAsync(LoginRequest request);
     }
 }
