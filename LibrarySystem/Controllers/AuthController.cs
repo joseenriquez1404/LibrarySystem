@@ -2,6 +2,7 @@ using LibrarySystem.Dtos;
 using LibrarySystem.Models;
 using LibrarySystem.Service;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LibrarySystem.Controllers
 {
@@ -17,6 +18,7 @@ namespace LibrarySystem.Controllers
             return StatusCode(StatusCodes.Status201Created, ToResponse(user));
         }
 
+        [EnableRateLimiting("login")]
         [HttpPost("login")]
         public async Task<ActionResult<AuthResponse>> Login(LoginRequest request)
         {
