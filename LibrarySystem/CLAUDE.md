@@ -80,12 +80,13 @@ Modelos de dominio y acceso a datos implementados (compilan sin warnings):
 - `Data/AppDbContext.cs`: un `DbSet` por entidad, relaciones con `Restrict`, enums como texto, índices únicos en `User.Email`, `Book.ISBN` y `Copy.Code`.
 - `Data/DbSeeder.cs`: usuarios por rol, categorías, autores, libros y ejemplares. Corre en Development y solo inserta si `Users` está vacía. Contraseñas de prueba: ver el archivo.
 - `Controllers/HealthController.cs`: `GET /health`, 200 si hay conexión a la base y 503 si no.
-- `Migrations/`: `InitialCreate` y `AddReservationFineAuditLog`, ya aplicadas en la base `Library`.
+- `Migrations/`: `InitialCreate`, `AddReservationFineAuditLog` y `UniqueCategoryName`, ya aplicadas en la base `Library`.
 - `Service/`: `IAuthService`/`AuthService` (registro de lectores y login), `ITokenService`/`TokenService` (crea el JWT con `JsonWebTokenHandler`), `IUserService`/`UserService` (consultar, cambiar rol y activar o desactivar; solo admin, nadie cambia su propio rol, crear usuarios, cambiar el rol y activar o desactivar van a `AuditLogs`) y `JwtSettings`.
 - `Dtos/`: `RegisterRequest` y `LoginRequest` con validaciones por atributos, `AuthResponse`, `UserResponse` (nunca expone el hash) y `PagedResult` (sin uso todavía).
 - `Exceptions/`: excepciones de los servicios (`InvalidInputException`, `ConflictException`, `InvalidCredentialsException`, `NotFoundException`, `ForbiddenException`) y `ApiExceptionHandler`, el único lugar que las traduce a 400, 401, 403, 404 y 409 con un campo `code`. Los mensajes están en inglés.
 - `Controllers/AuthController.cs`: `POST /api/auth/register` (201) y `POST /api/auth/login` (200).
 - `Controllers/AuditController.cs` (`GET /api/audit`, solo admin): últimos registros de `AuditLogs`, filtros `entity` y `actorId`, `limit` de 1 a 500 (100 por defecto) mientras no haya paginación.
+- `Controllers/CategoryController.cs` (`/api/categories`) y `Controllers/AuthorController.cs` (`/api/authors`): lectura para cualquier usuario autenticado; alta, edición y borrado para bibliotecario y admin. El nombre de categoría es único (409); borrar una categoría o un autor con libros devuelve 409. Listados sin paginación por ahora.
 - `Controllers/UserController.cs` (`/api/users`, requiere token): `GET me` para cualquier usuario; `GET`, `GET {id}`, `POST`, `PUT {id}/role` y `PUT {id}/active` solo para admin. No hay `DELETE`; los usuarios se desactivan.
 - `Program.cs` configura JwtBearer (en `OnTokenValidated` rechaza con 401 los tokens de usuarios desactivados, borrados o con el rol cambiado), valida `JwtSettings` al arrancar, aplica migraciones y corre el seed solo en Development.
 - JWT: `Issuer`, `Audience` y `AccessTokenMinutes` están en `appsettings.json`; solo `Key` cambia por entorno (`appsettings.Development.json` o `Jwt__Key`). La app no arranca si falta la clave o mide menos de 32 caracteres.
@@ -97,7 +98,6 @@ Pendiente:
 - Separar las cuatro capas (hoy todo vive en `Models/`, `Data/`, `Service/` y `Controllers/`), repositorios y casos de uso. Los servicios usan `AppDbContext` directamente.
 - Fase 2 incompleta: faltan los permisos por recurso y cambiar el hashing a bcrypt o argon2. El refresh token se aplazó.
 - Paginación aplazada por decisión del dueño del proyecto: `UserService.GetAllAsync` devuelve todos los usuarios. `TODO.txt` la pide en todos los listados; se retoma después de la fase 2.
-- Hay una migración vacía `PendingEntities` aplicada en la base local pero sin commitear; conviene quitarla con `Remove-Migration`.
 - Al leer el id del usuario en un controlador, usar `ClaimTypes.NameIdentifier` (JwtBearer renombra `sub`); el rol sí funciona con `[Authorize(Roles = "...")]`.
 - No hay proyecto de tests.
 - `LibrarySystem.http` apunta a `/weatherforecast/`, que no existe; es plantilla sin reemplazar.

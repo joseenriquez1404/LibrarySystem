@@ -29,6 +29,7 @@ namespace LibrarySystem.Data
 
             modelBuilder.Entity<Category>(entity =>
             {
+                entity.HasIndex(c => c.Name).IsUnique();
                 entity.Property(c => c.Name).HasMaxLength(100);
             });
 
