@@ -137,6 +137,8 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 builder.Services.AddScoped<IUserService, UserService>();
 
+builder.Services.AddScoped<IAuditService, AuditService>();
+
 builder.Services.AddScoped<IPasswordHasher<User>, PasswordHasher<User>>();
 
 builder.Services.AddScoped<ITokenService, TokenService>();
