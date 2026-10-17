@@ -4,11 +4,12 @@ using LibrarySystem.Dtos;
 using LibrarySystem.Exceptions;
 using LibrarySystem.Models;
 using LibrarySystem.Models.Enums;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace LibrarySystem.Service
 {
-    public class UserService(AppDbContext _context) : IUserService
+    public class UserService(AppDbContext _context, IPasswordHasher<User> _hasher) : IUserService
     {
         public async Task<User> GetByIdAsync(int id)
         {
@@ -17,20 +18,46 @@ namespace LibrarySystem.Service
             return user;
         }
 
-        public async Task<List<UserResponse>> GetAllAsync()
+        public async Task<List<User>> GetAllAsync()
         {
             return await _context.Users
                 .AsNoTracking()
                 .OrderBy(u => u.Id)
-                .Select(u => new UserResponse
-                {
-                    Id = u.Id,
-                    Name = u.Name,
-                    Email = u.Email,
-                    Role = u.Role.ToString(),
-                    Active = u.Active
-                })
                 .ToListAsync();
+        }
+
+        public async Task<User> CreateAsync(int actorId, CreateUserRequest request)
+        {
+            await EnsureAdminAsync(actorId);
+
+            if (!Enum.IsDefined(request.Role))
+            {
+                throw new InvalidInputException("Role is not valid.");
+            }
+
+            var email = (request.Email ?? string.Empty).Trim().ToLowerInvariant();
+
+            if (await _context.Users.AnyAsync(u => u.Email == email))
+            {
+                throw new ConflictException("A user with that email already exists.");
+            }
+
+            var user = new User { Name = request.Name.Trim(), Email = email, Role = request.Role };
+            user.PasswordHash = _hasher.HashPassword(user, request.Password);
+
+            _context.Users.Add(user);
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                // Dos altas simultáneas con el mismo email: gana el índice único.
+                throw new ConflictException("A user with that email already exists.");
+            }
+
+            return user;
         }
 
         public async Task<User> ChangeRoleAsync(int actorId, int userId, Roles newRole)

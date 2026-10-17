@@ -85,6 +85,7 @@ Modelos de dominio y acceso a datos implementados (compilan sin warnings):
 - `Dtos/`: `RegisterRequest` y `LoginRequest` con validaciones por atributos, `AuthResponse`, `UserResponse` (nunca expone el hash) y `PagedResult` (sin uso todavía).
 - `Exceptions/`: excepciones de los servicios (`InvalidInputException`, `ConflictException`, `InvalidCredentialsException`, `NotFoundException`, `ForbiddenException`) y `ApiExceptionHandler`, el único lugar que las traduce a 400, 401, 403, 404 y 409 con un campo `code`. Los mensajes están en inglés.
 - `Controllers/AuthController.cs`: `POST /api/auth/register` (201) y `POST /api/auth/login` (200).
+- `Controllers/UserController.cs` (`/api/users`, requiere token): `GET me` para cualquier usuario; `GET`, `GET {id}`, `POST`, `PUT {id}/role` y `PUT {id}/active` solo para admin. No hay `DELETE`; los usuarios se desactivan.
 - `Program.cs` configura JwtBearer, valida `JwtSettings` al arrancar, aplica migraciones y corre el seed solo en Development.
 - JWT: `Issuer`, `Audience` y `AccessTokenMinutes` están en `appsettings.json`; solo `Key` cambia por entorno (`appsettings.Development.json` o `Jwt__Key`). La app no arranca si falta la clave o mide menos de 32 caracteres.
 
@@ -93,10 +94,10 @@ Pendiente:
 - Decidir si `Copy` se renombra a `Ejemplar` y `Book`/`Author`/`Category` a español. Hoy hay nombres mezclados.
 - Relación `Book`–`Category`: se asume una categoría por libro.
 - Separar las cuatro capas (hoy todo vive en `Models/`, `Data/`, `Service/` y `Controllers/`), repositorios y casos de uso. Los servicios usan `AppDbContext` directamente.
-- Fase 2 incompleta: falta un `UserController`, proteger endpoints con `[Authorize]` y permisos por recurso, límite de intentos de login, que un usuario desactivado no pueda usar tokens vigentes, y cambiar el hashing a bcrypt o argon2. El refresh token se aplazó.
-- Paginación aplazada: `UserService.GetAllAsync` devuelve todos los usuarios. `TODO.txt` sigue pidiéndola en todos los listados.
+- Fase 2 incompleta: faltan los permisos por recurso, que un usuario desactivado no pueda usar tokens vigentes, y cambiar el hashing a bcrypt o argon2. El refresh token se aplazó.
+- Paginación aplazada por decisión del dueño del proyecto: `UserService.GetAllAsync` devuelve todos los usuarios. `TODO.txt` la pide en todos los listados; se retoma después de la fase 2.
 - Hay una migración vacía `PendingEntities` aplicada en la base local pero sin commitear; conviene quitarla con `Remove-Migration`.
-- Al leer el id del usuario en un controlador, usar el claim `sub` (con `JsonWebTokenHandler` los claims no se renombran); el rol sí funciona con `[Authorize(Roles = "...")]`.
+- Al leer el id del usuario en un controlador, usar `ClaimTypes.NameIdentifier` (JwtBearer renombra `sub`); el rol sí funciona con `[Authorize(Roles = "...")]`.
 - No hay proyecto de tests.
 - `LibrarySystem.http` apunta a `/weatherforecast/`, que no existe; es plantilla sin reemplazar.
 
@@ -107,7 +108,7 @@ Git: ramas `master` (principal) y `modelos-dominio`, con remoto `origin`. `.giti
 - Idioma: mensajes de usuario y términos de dominio en español, igual que `TODO.txt`. Los nombres de código de los modelos actuales están en inglés; mantén la convención que quede decidida en "Pendiente".
 - Nunca loguear contraseñas ni tokens.
 - Configuración sensible por variables de entorno. No commitear secretos ni `appsettings` con credenciales reales.
-- Todo listado tiene paginación y ordenamiento con tamaño máximo de página.
+- La paginación y el ordenamiento de los listados se aplazan hasta después de la fase 2; por ahora los listados devuelven todo.
 - Formato de error uniforme: código, mensaje y detalle.
 - 401 cuando falta o expiró el token; 403 cuando el rol no alcanza. No mezclarlos.
 - Commits pequeños.
