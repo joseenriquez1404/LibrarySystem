@@ -47,6 +47,9 @@ namespace LibrarySystem.Service
 
             _context.Users.Add(user);
 
+            // El Id del usuario nace al guardar; la transacción deja usuario y auditoría juntos.
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
             try
             {
                 await _context.SaveChangesAsync();
@@ -56,6 +59,10 @@ namespace LibrarySystem.Service
                 // Dos altas simultáneas con el mismo email: gana el índice único.
                 throw new ConflictException("A user with that email already exists.");
             }
+
+            AddAudit(actorId, "CreateUser", null, new { user.Id, user.Email, Role = user.Role.ToString() });
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
 
             return user;
         }
@@ -84,15 +91,9 @@ namespace LibrarySystem.Service
 
             user.Role = newRole;
 
-            _context.AuditLogs.Add(new AuditLog
-            {
-                ActorId = actorId,
-                Action = "ChangeRole",
-                Entity = "User",
-                Before = JsonSerializer.Serialize(new { user.Id, Role = previousRole.ToString() }),
-                After = JsonSerializer.Serialize(new { user.Id, Role = newRole.ToString() }),
-                Date = DateTime.UtcNow
-            });
+            AddAudit(actorId, "ChangeRole",
+                new { user.Id, Role = previousRole.ToString() },
+                new { user.Id, Role = newRole.ToString() });
 
             await _context.SaveChangesAsync();
 
@@ -112,11 +113,29 @@ namespace LibrarySystem.Service
 
             if (user.Active != active)
             {
+                var previousActive = user.Active;
                 user.Active = active;
+
+                AddAudit(actorId, "SetActive", new { user.Id, Active = previousActive }, new { user.Id, Active = active });
+
                 await _context.SaveChangesAsync();
             }
 
             return user;
+        }
+
+        // Nunca pasar contraseñas ni hashes en before/after.
+        private void AddAudit(int actorId, string action, object? before, object? after)
+        {
+            _context.AuditLogs.Add(new AuditLog
+            {
+                ActorId = actorId,
+                Action = action,
+                Entity = "User",
+                Before = before is null ? null : JsonSerializer.Serialize(before),
+                After = after is null ? null : JsonSerializer.Serialize(after),
+                Date = DateTime.UtcNow
+            });
         }
 
         private async Task<User> FindUserAsync(int id)

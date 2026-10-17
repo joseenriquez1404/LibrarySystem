@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
@@ -33,6 +34,34 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtSettings.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(
                     Encoding.UTF8.GetBytes(jwtSettings.Key))
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            // Un JWT firmado no sabe si el usuario fue desactivado o cambió de rol después de emitirse.
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal;
+                var idClaim = principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (!int.TryParse(idClaim, out var userId))
+                {
+                    context.Fail("Invalid token subject.");
+                    return;
+                }
+
+                var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var current = await db.Users
+                    .AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => new { u.Active, u.Role })
+                    .FirstOrDefaultAsync(context.HttpContext.RequestAborted);
+
+                if (current is null || !current.Active || principal!.FindFirstValue(ClaimTypes.Role) != current.Role.ToString())
+                {
+                    context.Fail("User is inactive or no longer matches the token.");
+                }
+            }
         };
     });
 
