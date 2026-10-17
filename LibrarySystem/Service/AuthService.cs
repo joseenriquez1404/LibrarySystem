@@ -30,7 +30,7 @@ namespace LibrarySystem.Service
             {
                 await _context.SaveChangesAsync();
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex) when (ex.IsUniqueViolation())
             {
                 // Dos registros simultáneos con el mismo email: gana el índice único.
                 throw new ConflictException("A user with that email already exists.");
